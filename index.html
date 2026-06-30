@@ -152,11 +152,16 @@ details.imgd figure img{max-width:560px}
         <option value="SaaS">SaaS (BC28)</option>
       </select>
     </label>
+    <label>Progetto
+      <select id="project"><option value="">&mdash; Generico &mdash;</option></select>
+    </label>
     <label>Cerca
       <input id="search" type="search" placeholder="filtra testo...">
     </label>
     <button id="toggleAll">Comprimi tutto</button>
-    <button id="resetChk" title="Azzera le caselle spuntate">Azzera checklist</button>
+    <button id="unlockBtn">Sblocca progetti</button>
+    <button id="newProjBtn" style="display:none">Nuovo progetto</button>
+    <button id="exportProjBtn" style="display:none">Esporta (cifrato)</button>
   </div>
   <div class="route" id="routeInfo">Percorso: tutti i capitoli visibili.</div>
 </header>
@@ -689,10 +694,57 @@ Get-NAVDataUpgrade -ServerInstance <ISTANZA> -ErrorOnly</textarea></div>
       cb.addEventListener('change',function(){ localStorage.setItem(key, cb.checked?'1':'0'); });
     });
   });
-  document.getElementById('resetChk').addEventListener('click',function(){
-    if(!confirm('Azzerare tutte le caselle spuntate?')) return;
-    Object.keys(localStorage).forEach(function(k){ if(k.indexOf('mig_chk_')===0) localStorage.removeItem(k); });
-    document.querySelectorAll('ul.chk input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  // ===== Progetti cifrati (passphrase, lato browser) =====
+  var projectSel=document.getElementById('project');
+  var unlockBtn=document.getElementById('unlockBtn');
+  var newProjBtn=document.getElementById('newProjBtn');
+  var exportProjBtn=document.getElementById('exportProjBtn');
+  var PROJ=null, PASS=null, CIPHER=null, currentProject=null;
+  function chkKey(ul,i){ return ul.getAttribute('data-grp')+'_'+i; }
+  function captureChecks(){ var o={}; document.querySelectorAll('ul.chk').forEach(function(ul){ ul.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ if(cb.checked) o[chkKey(ul,i)]=true; }); }); return o; }
+  function applyChecks(checks){ document.querySelectorAll('ul.chk').forEach(function(ul){ ul.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ cb.checked = !!(checks && checks[chkKey(ul,i)]); }); }); }
+  function b64(buf){ return btoa(String.fromCharCode.apply(null,new Uint8Array(buf))); }
+  function ub64(s){ return Uint8Array.from(atob(s),function(c){return c.charCodeAt(0);}); }
+  function deriveKey(pass,salt){ var enc=new TextEncoder(); return crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']).then(function(km){ return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:150000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }); }
+  function encJSON(obj,pass){ var salt=crypto.getRandomValues(new Uint8Array(16)); var iv=crypto.getRandomValues(new Uint8Array(12)); return deriveKey(pass,salt).then(function(key){ return crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,new TextEncoder().encode(JSON.stringify(obj))); }).then(function(ct){ return JSON.stringify({v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)}); }); }
+  function decJSON(text,pass){ var o=JSON.parse(text); return deriveKey(pass,ub64(o.salt)).then(function(key){ return crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.iv)},key,ub64(o.ct)); }).then(function(pt){ return JSON.parse(new TextDecoder().decode(pt)); }); }
+  function fillProjectList(){ projectSel.innerHTML='<option value="">\u2014 Generico \u2014</option>'; ((PROJ&&PROJ.projects)||[]).forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.nome; projectSel.appendChild(o); }); }
+  if (location.protocol==='file:' || !window.crypto || !crypto.subtle){
+    unlockBtn.disabled=true; unlockBtn.title='Disponibile solo sul sito pubblicato (https).';
+  } else {
+    fetch('projects.enc',{cache:'no-store'}).then(function(r){ return r.ok? r.text():null; }).then(function(t){ CIPHER=t; }).catch(function(){ CIPHER=null; });
+  }
+  unlockBtn.addEventListener('click',function(){
+    var pass=window.prompt('Passphrase progetti:'); if(pass===null) return;
+    var go = CIPHER ? decJSON(CIPHER,pass) : Promise.resolve({projects:[]});
+    go.then(function(data){ PROJ=data||{projects:[]}; if(!PROJ.projects) PROJ.projects=[]; PASS=pass; fillProjectList(); unlockBtn.style.display='none'; newProjBtn.style.display=''; exportProjBtn.style.display=''; })
+      .catch(function(){ alert('Passphrase errata o file non valido.'); });
+  });
+  projectSel.addEventListener('change',function(){
+    var id=projectSel.value;
+    if(!id){ currentProject=null; return; }
+    var p=((PROJ&&PROJ.projects)||[]).filter(function(x){return x.id===id;})[0]; if(!p) return;
+    currentProject=p; startSel.value=p.start||'all'; targetSel.value=p.target||''; apply(); applyChecks(p.checks||{});
+  });
+  startSel.addEventListener('change',function(){ if(projectSel.value){ projectSel.value=''; currentProject=null; } });
+  targetSel.addEventListener('change',function(){ if(projectSel.value){ projectSel.value=''; currentProject=null; } });
+  document.querySelectorAll('ul.chk input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change',function(){ if(currentProject){ currentProject.checks=captureChecks(); } }); });
+  newProjBtn.addEventListener('click',function(){
+    if(!PROJ){ alert('Sblocca prima i progetti.'); return; }
+    var nome=window.prompt('Nome del nuovo progetto:'); if(!nome) return;
+    var id='p'+Date.now().toString(36);
+    var p={id:id,nome:nome,start:startSel.value,target:targetSel.value,checks:captureChecks()};
+    PROJ.projects.push(p); fillProjectList(); projectSel.value=id; currentProject=p;
+    alert('Progetto creato in memoria. Usa "Esporta (cifrato)" e committa projects.enc per salvarlo.');
+  });
+  exportProjBtn.addEventListener('click',function(){
+    if(!PROJ||PASS===null){ alert('Sblocca prima i progetti.'); return; }
+    if(currentProject){ currentProject.checks=captureChecks(); }
+    encJSON(PROJ,PASS).then(function(blobText){
+      var blob=new Blob([blobText],{type:'application/octet-stream'});
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='projects.enc'; document.body.appendChild(a); a.click(); a.remove();
+      alert('Generato projects.enc: committalo nel repo del sito per salvare lo stato dei progetti.');
+    });
   });
   document.getElementById('printBtn').addEventListener('click',function(){ sections.forEach(function(s){s.classList.remove('collapsed');}); document.querySelectorAll('details').forEach(function(d){d.open=true;}); autosizeVisible(); setTimeout(function(){window.print();},250); });
 
