@@ -28,6 +28,7 @@ h2{color:var(--blu);border-left:5px solid var(--blu);padding-left:10px;font-size
 h3{color:#2a5c8a;font-size:16px;margin:14px 0 6px}
 .badge{display:inline-block;background:#e7f0e9;color:var(--verde);border:1px solid #bcd9c3;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:bold;margin:4px 0}
 .note{background:var(--giallo);border:1px solid #ecd9a0;border-left:4px solid #e0a800;padding:8px 12px;border-radius:4px;margin:8px 0}
+.danger{background:#fbe9e7;border:1px solid #f1c0b8;border-left:4px solid #c0392b;color:#7a241a;padding:8px 12px;border-radius:4px;margin:8px 0}
 .note b{color:#7a5b00}
 table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
 th,td{border:1px solid var(--bordo);padding:6px 8px;text-align:left;vertical-align:top}
@@ -88,6 +89,7 @@ body.dark table{background:#2a313b}
 body.dark th{background:#313a45;color:#cfd5dc}
 body.dark th,body.dark td{border-color:#3f4853}
 body.dark .note{background:#2c2f37;border:1px solid #444a55;border-left:4px solid #c9972b;color:#d9d5c6}
+body.dark .danger{background:#3a2622;border:1px solid #5e3a33;border-left:4px solid #e06c5a;color:#f0c8c0}
 body.dark .note b{color:#e3bd6f}
 body.dark textarea.code{background:#171c23;border-color:#333b45;color:#c6cdd6}
 body.dark .copy{background:#2f3741;color:#cfd5dc;border-color:#465160}
@@ -170,6 +172,7 @@ details.imgd figure img{max-width:560px}
   <p>Questo manuale descrive la migrazione/upgrade di un database Microsoft Dynamics 365 Business Central (BC) e la migrazione dei dati delle estensioni custom MDS, EOS, SWG e ALP. Gli upgrade non sono mai diretti: passano per versioni intermedie obbligatorie.</p>
   <p>Il documento e organizzato in ordine di versione: si parte dai capitoli <b>Percorso</b> (scelti in base al punto di partenza), che richiamano i <b>Blocchi comuni</b> (procedure riusabili) e i <b>Moduli condizionali</b> (solo se il relativo modulo e presente).</p>
   <div class="note"><b>Suggerimento:</b> usa i menu in alto per selezionare versione di partenza e arrivo: il manuale mostrera solo i capitoli pertinenti al tuo percorso.</div>
+  <div class="danger"><b>Attenzione:</b> le caselle spuntate della checklist NON vengono salvate in modo permanente: chiudendo o ricaricando la pagina (o su un altro dispositivo) lo stato delle spunte potrebbe andare perso. Tieni traccia dell'avanzamento anche fuori da questo manuale.</div>
   <div class="note"><b>Attenzione:</b> eseguire sempre prima in TEST/COLLAUDO e fare un backup completo prima di ogni fase distruttiva.</div>
   <div class="note"><b>Consiglio (preparazione al live):</b> durante le prove in TEST annota OGNI step effettivamente eseguito (comandi, versioni esatte, ordine, tempi) e salva TUTTE le query modificate/adattate al cliente. Conserva questi appunti: al momento della migrazione live in produzione potrai ripetere la sequenza identica senza dover ricostruire o riadattare nulla all'ultimo momento.</div>
 </section>
